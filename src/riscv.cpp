@@ -1,62 +1,85 @@
 #include "../h/riscv.h"
 #include "../h/MemoryAllocator.h"
 #include "../h/TCB.h"
+#include "../lib/console.h"
 
-static const uint64 SYS_MEM_ALLOC = 0x01;
-static const uint64 SYS_MEM_FREE  = 0x02;
-static const uint64 SYS_THREAD_CREATE = 0x11;
-static const uint64 SYS_THREAD_EXIT = 0x12;
+
+static const uint64 SYS_MEM_ALLOC       = 0x01;
+static const uint64 SYS_MEM_FREE        = 0x02;
+static const uint64 SYS_THREAD_CREATE   = 0x11;
+static const uint64 SYS_THREAD_EXIT     = 0x12;
 static const uint64 SYS_THREAD_DISPATCH = 0x13;
+static const uint64 SYS_GETC            = 0x41;
+static const uint64 SYS_PUTC            = 0x42;
+
 
 void Riscv::popSppSpie() {
     __asm__ volatile("csrw sepc, ra");
     __asm__ volatile("sret");
 }
 
-extern "C" void handleSupervisorTrap(uint64* frame){
-    uint64 scause =Riscv::r_scause();
-    if(scause == Riscv::SCAUSE_ECALL_SUPERVISOR || scause == Riscv::SCAUSE_ECALL_USER){
-        uint64 sepc = Riscv::r_sepc() + 4; // povrataknakonecall
+/*
+ * frame[i] = sacuvani registar x_i sa steka prekidne rutine:
+ *   frame[10] = a0 (sifra poziva / povratna vrednost)
+ *   frame[11..14] = a1..a4 (argumenti)
+ */
+extern "C" void handleSupervisorTrap(uint64* frame) {
+    uint64 scause = Riscv::r_scause();
+
+    if (scause == Riscv::SCAUSE_ECALL_SUPERVISOR ||
+        scause == Riscv::SCAUSE_ECALL_USER) {
+
+        uint64 sepc = Riscv::r_sepc() + 4;     // povratak IZA ecall-a
         uint64 sstatus = Riscv::r_sstatus();
 
         switch (frame[10]) {
             case SYS_MEM_ALLOC:
-                frame[10] =(uint64) MemoryAllocator::alloc(frame[11]);
+                frame[10] = (uint64) MemoryAllocator::alloc(frame[11]);
                 break;
             case SYS_MEM_FREE:
-
                 frame[10] = (uint64)(long) MemoryAllocator::free((void*) frame[11]);
                 break;
             case SYS_THREAD_CREATE: {
+                // a1=handle, a2=start_routine, a3=arg, a4=stack_space
                 TCB* t = TCB::createThread((TCB::Body) frame[12],
-                    (void*) frame[13],
-                    (void*) frame[14]);
-                if (t&& frame[11]) {
-                    *(uint64*) frame[11] =(uint64) t;
+                                           (void*) frame[13],
+                                           (void*) frame[14]);
+                if (t && frame[11]) {
+                    *(uint64*) frame[11] = (uint64) t;
                     frame[10] = 0;
-
-                }else {
+                } else {
                     frame[10] = (uint64)(long) -1;
                 }
                 break;
             }
-            case SYS_THREAD_EXIT: {
+            case SYS_THREAD_EXIT:
                 TCB::running->setFinished(true);
                 TCB::dispatch();
                 break;
-            }
-            case SYS_THREAD_DISPATCH: {
+            case SYS_THREAD_DISPATCH:
                 TCB::dispatch();
                 break;
-            }
-            default:
+            case SYS_GETC:
 
+                Riscv::w_sstatus(Riscv::r_sstatus() | Riscv::SSTATUS_SIE);
+                frame[10] = (uint64) __getc();
+                Riscv::w_sstatus(Riscv::r_sstatus() & ~Riscv::SSTATUS_SIE);
+                break;
+            case SYS_PUTC:
+                __putc((char) frame[11]);
+                break;
+            default:
+                frame[10] = (uint64)(long) -1;
                 break;
         }
+
+
         Riscv::w_sstatus(sstatus);
         Riscv::w_sepc(sepc);
-    }
-    else{
+    } else if (scause == Riscv::SCAUSE_SOFTWARE_TIMER) {
 
+        Riscv::w_sip(Riscv::r_sip() & ~Riscv::SIP_SSIP);
+    } else if (scause == Riscv::SCAUSE_EXTERNAL_CONSOLE) {
+        console_handler();
     }
 }

@@ -50,3 +50,52 @@ void thread_dispatch() {
     register uint64 a0 __asm__("a0") = 0x13;
     __asm__ volatile("ecall" : "+r"(a0) : : "memory");
 }
+
+char getc() {
+    register uint64 a0 __asm__("a0") = 0x41;
+    __asm__ volatile("ecall" : "+r"(a0) : : "memory");
+    return (char) a0;
+}
+
+void putc(char chr) {
+    register uint64 a0 __asm__("a0") = 0x42;
+    register uint64 a1 __asm__("a1") = (uint64) chr;
+    __asm__ volatile("ecall" : "+r"(a0) : "r"(a1) : "memory");
+}
+
+
+int sem_open(sem_t* handle, unsigned init) {
+    register uint64 a0 __asm__("a0") = 0x21;
+    register uint64 a1 __asm__("a1") = (uint64) handle;
+    register uint64 a2 __asm__("a2") = (uint64) init;
+    __asm__ volatile("ecall" : "+r"(a0) : "r"(a1), "r"(a2) : "memory");
+    return (int) a0;
+}
+
+int sem_close(sem_t handle) {
+    register uint64 a0 __asm__("a0") = 0x22;
+    register uint64 a1 __asm__("a1") = (uint64) handle;
+    __asm__ volatile("ecall" : "+r"(a0) : "r"(a1) : "memory");
+    return (int) a0;
+}
+
+int sem_wait(sem_t id) {
+    register uint64 a0 __asm__("a0") = 0x23;
+    register uint64 a1 __asm__("a1") = (uint64) id;
+    __asm__ volatile("ecall" : "+r"(a0) : "r"(a1) : "memory");
+    return (int) a0;
+}
+
+int sem_signal(sem_t id) {
+    register uint64 a0 __asm__("a0") = 0x24;
+    register uint64 a1 __asm__("a1") = (uint64) id;
+    __asm__ volatile("ecall" : "+r"(a0) : "r"(a1) : "memory");
+    return (int) a0;
+}
+
+int time_sleep(time_t t) {
+    register uint64 a0 __asm__("a0") = 0x31;
+    register uint64 a1 __asm__("a1") = (uint64) t;
+    __asm__ volatile("ecall" : "+r"(a0) : "r"(a1) : "memory");
+    return (int) a0;
+}
