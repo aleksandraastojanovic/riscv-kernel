@@ -9,8 +9,10 @@
 #include "../lib/hw.h"
 class TCB{
 public:
-    using Body = void(*)();
-    static TCB* createThread(Body body);
+    using Body = void(*)(void*);
+    static TCB* createThread(Body body,void* arg,void* stack_space);
+    static void dispatch();
+
 
     bool isFinished()const{return finished;}
     void setFinished(bool value) {finished =value;}
@@ -20,25 +22,24 @@ public:
     void* operator new(size_t n);
     void operator delete(void* p);
 
-    static void yield();
     struct Context{
         uint64 ra;
         uint64 sp;
     };
 private:
-    explicit TCB(Body body);
+    explicit TCB(Body body,void* arg, void* stack_space);
 
-    static void dispatch();
     static void threadWrapper();
     Body body;
-    uint64 *stack;
+    void*arg;
+    uint64 *stackBegin;
     Context context;
     bool finished;
     TCB* next;
 
     friend class Scheduler;
 
-    static const uint64 STACK_SIZE = DEFAULT_STACK_SIZE;
+
 };
 
 #endif //PROJECT_BASE_V1_1_TCB_H

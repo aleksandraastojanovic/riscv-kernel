@@ -1,11 +1,11 @@
-#include "../h/TCB.h"
+#include "../h/riscv.h"
+#include  "../h/syscall_c.h"
 
 #include "../h/Scheduler.h"
 #include "../h/TCB.h"
 #include "../h/MemoryAllocator.h"
 
-extern  "C" void pushRegisters();
-extern  "C" void popRegisters();
+
 extern  "C" void contextSwitch(TCB::Context* old, TCB::Context* newContext);
 
 TCB* TCB::running = nullptr;
@@ -21,37 +21,39 @@ void* TCB::operator new(size_t n) {
     return MemoryAllocator::alloc(bytesToBlocks(n));
 }
 
-TCB::TCB(Body b):
-    body(b),stack(b?(uint64*) MemoryAllocator::alloc(bytesToBlocks(STACK_SIZE)):nullptr),
-    context({b?(uint64) &threadWrapper:0,stack?(uint64)&stack[STACK_SIZE/sizeof(uint64)]:0}),
+TCB::TCB(Body b, void* a, void* stack_space) :
+    body(b),
+    arg(a),
+    // stack_space pokazuje na KRAJ prostora; pocetak (za oslobadjanje) je
+    // DEFAULT_STACK_SIZE bajtova unazad - toliko C API uvek alocira
+    stackBegin(stack_space
+        ? (uint64*)((char*)stack_space - DEFAULT_STACK_SIZE) : nullptr),
+
+    context({ b ? (uint64) &threadWrapper : 0, (uint64) stack_space }),
     finished(false),
     next(nullptr)
 {
-    if(b)Scheduler::put(this);
+    if (b) Scheduler::put(this);
 }
 
 TCB::~TCB() {
-if(stack) MemoryAllocator::free(stack);
+if(stackBegin) MemoryAllocator::free(stackBegin);
 }
 
-TCB* TCB::createThread(Body body) {
-    return new TCB(body);
-}
-void TCB::yield() {
-    pushRegisters();
-    dispatch();
-    popRegisters();
+TCB* TCB::createThread(Body body, void* arg, void* stack_space) {
+    return new TCB(body, arg, stack_space);
 }
 
 void TCB::dispatch() {
-    TCB* old= running;
-    if (!old->isFinished())Scheduler::put(old);
-    running= Scheduler::get();
-    contextSwitch(&old->context,&running->context);
+    TCB* old = running;
+    if (!old->isFinished()) Scheduler::put(old);  // zavrsene se ne vracaju u listu
+    running = Scheduler::get();
+    contextSwitch(&old->context, &running->context);
+
 }
 
 void TCB::threadWrapper() {
-    running->body();
-    running->setFinished(true);
-    yield();
+    Riscv::popSppSpie();           // iskoci iz trap
+    running->body(running->arg);
+    thread_exit();
 }

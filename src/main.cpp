@@ -14,48 +14,49 @@ static void printInt(int n) {
     __putc('0' + n % 10);
 }
 
-// tela probnih niti: rade po malo posla pa dobrovoljno prepuste procesor
-static void workerA() {
-    for (int i = 0; i < 3; i++) {
-        print("A: i="); printInt(i); print("\n");
-        TCB::yield();
-    }
-    print("A: kraj\n");
-}
+// JEDNA funkcija za SVE radnike - svako dobija svoje podatke kroz arg!
+struct WorkerArgs {
+    const char* name;
+    int from, to;
+    volatile bool* done;
+};
 
-static void workerB() {
-    for (int i = 10; i < 13; i++) {
-        print("B: i="); printInt(i); print("\n");
-        TCB::yield();
+static void worker(void* p) {
+    WorkerArgs* w = (WorkerArgs*) p;
+    for (int i = w->from; i < w->to; i++) {
+        print(w->name); print(": i="); printInt(i); print("\n");
+        thread_dispatch();
     }
-    print("B: kraj\n");
+    print(w->name); print(": kraj\n");
+    *w->done = true;
 }
 
 int main() {
     print("OS1 kernel: start\n");
 
-    // registruj prekidnu rutinu (kapiju) PRE prvog sistemskog poziva
+    // inicijalizacija jezgra: kapija + omotac za vec-izvrsavajuci main
     Riscv::w_stvec((uint64) &supervisorTrap);
+    TCB::running = TCB::createThread(nullptr, nullptr, nullptr);
 
-    // --- regresija: zadatak 1 (mem_alloc/mem_free kroz sistemske pozive) ---
-    void* a = mem_alloc(100);
-    void* b = mem_alloc(65);
-    print(a && b ? "mem_alloc: OK\n" : "mem_alloc: FAIL\n");
-    print(mem_free(a) == 0 && mem_free(b) == 0 ? "mem_free: OK\n"
-                                               : "mem_free: FAIL\n");
+    // regresija zadatka 1
+    void* m = mem_alloc(100);
+    print(m && mem_free(m) == 0 ? "mem_alloc/mem_free: OK\n"
+                                : "mem_alloc/mem_free: FAIL\n");
 
-    // --- zadatak 2, koraci 5-6: niti se stvarno smenjuju! ---
-    TCB::running = TCB::createThread(nullptr);  // omotac za main: vec se
-    // izvrsava i ima svoj stek
-    TCB* ta = TCB::createThread(workerA);
-    TCB* tb = TCB::createThread(workerB);
+    // --- niti kroz PRAVE sistemske pozive, sa argumentima ---
+    volatile bool doneA = false, doneB = false;
+    WorkerArgs wa = { "A", 0, 3, &doneA };
+    WorkerArgs wb = { "B", 10, 13, &doneB };
 
-    while (!(ta->isFinished() && tb->isFinished())) {
-        TCB::yield();
+    thread_t ta = nullptr, tb = nullptr;
+    int s1 = thread_create(&ta, worker, &wa);
+    int s2 = thread_create(&tb, worker, &wb);
+    print(s1 == 0 && s2 == 0 ? "thread_create: OK\n" : "thread_create: FAIL\n");
+
+    while (!(doneA && doneB)) {
+        thread_dispatch();
     }
-    delete ta;
-    delete tb;
-    print("niti zavrsene, main nastavlja\n");
+    print("niti zavrsene kroz sistemske pozive!\n");
 
     print("OS1 kernel: kraj\n");
     for (;;) { /* kernel se ne "vraca" nikuda */ }

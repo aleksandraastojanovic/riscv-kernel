@@ -13,6 +13,7 @@ class Riscv{
 public:
     static const uint64 SCAUSE_ECALL_USER       = 0x0000000000000008UL;
     static const uint64 SCAUSE_ECALL_SUPERVISOR = 0x0000000000000009UL;
+
     static uint64 r_scause(){
         uint64 v;
         __asm__ volatile("csrr %0, scause" : "=r"(v));
@@ -30,5 +31,17 @@ public:
         __asm__ volatile("csrw stvec, %0" : : "r"(v));
     }
 
+    static uint64 r_sstatus(){
+        uint64 v;
+        __asm__ volatile("csrr %0, sstatus" : "=r"(v));
+        return v;
+    }
+    static void w_sstatus(uint64 v){
+
+        __asm__ volatile("csrw sstatus, %0" : : "r"(v));
+
+    }
+
+    static void popSppSpie();
 };
 #endif //PROJECT_BASE_V1_1_RISCV_H
