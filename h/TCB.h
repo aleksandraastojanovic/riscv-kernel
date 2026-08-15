@@ -19,13 +19,17 @@ public:
 
     void* operator new(size_t n);
     void operator delete(void* p);
-private:
-    explicit TCB(Body body);
+
+    static void yield();
     struct Context{
         uint64 ra;
         uint64 sp;
     };
+private:
+    explicit TCB(Body body);
 
+    static void dispatch();
+    static void threadWrapper();
     Body body;
     uint64 *stack;
     Context context;
