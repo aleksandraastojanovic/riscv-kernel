@@ -1,0 +1,5 @@
+build/
+kernel
+kernel.asm
+.gdbinit
+.idea/
