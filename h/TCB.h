@@ -36,8 +36,10 @@ private:
     Context context;
     bool finished;
     TCB* next;
+    int semResult;
 
     friend class Scheduler;
+    friend class SCB;
 
 
 };

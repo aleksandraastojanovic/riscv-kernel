@@ -1,6 +1,7 @@
 #include "../h/riscv.h"
 #include "../h/MemoryAllocator.h"
 #include "../h/TCB.h"
+#include "../h/SCB.h"
 #include "../lib/console.h"
 
 
@@ -9,6 +10,10 @@ static const uint64 SYS_MEM_FREE        = 0x02;
 static const uint64 SYS_THREAD_CREATE   = 0x11;
 static const uint64 SYS_THREAD_EXIT     = 0x12;
 static const uint64 SYS_THREAD_DISPATCH = 0x13;
+static const uint64 SYS_SEM_OPEN        = 0x21;
+static const uint64 SYS_SEM_CLOSE       = 0x22;
+static const uint64 SYS_SEM_WAIT        = 0x23;
+static const uint64 SYS_SEM_SIGNAL      = 0x24;
 static const uint64 SYS_GETC            = 0x41;
 static const uint64 SYS_PUTC            = 0x42;
 
@@ -59,6 +64,38 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
             case SYS_THREAD_DISPATCH:
                 TCB::dispatch();
                 break;
+            case SYS_SEM_OPEN: {
+                SCB* s = new SCB((int) frame[12]);   // a2 = init vrednost
+                if (s && frame[11]) {
+                    *(uint64*) frame[11] = (uint64) s;   // upisi rucku
+                    frame[10] = 0;
+                } else {
+                    frame[10] = (uint64)(long) -1;
+                }
+                break;
+            }
+            case SYS_SEM_CLOSE: {
+                SCB* s = (SCB*) frame[11];
+                if (!s) { frame[10] = (uint64)(long) -1; break; }
+                s->closeAll();       // probudi sve spavace sa greskom
+                delete s;
+                frame[10] = 0;
+                break;
+            }
+            case SYS_SEM_WAIT: {
+                SCB* s = (SCB*) frame[11];
+                if (!s) { frame[10] = (uint64)(long) -1; break; }
+                // block() unutra moze da nas uspava - nastavicemo se ovde
+                // kad nas neko probudi (sepc/sstatus lokali to prezive!)
+                frame[10] = (uint64)(long) s->wait();
+                break;
+            }
+            case SYS_SEM_SIGNAL: {
+                SCB* s = (SCB*) frame[11];
+                if (!s) { frame[10] = (uint64)(long) -1; break; }
+                frame[10] = (uint64)(long) s->signal();
+                break;
+            }
             case SYS_GETC:
 
                 Riscv::w_sstatus(Riscv::r_sstatus() | Riscv::SSTATUS_SIE);
