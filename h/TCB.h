@@ -22,9 +22,10 @@ public:
     void* operator new(size_t n);
     void operator delete(void* p);
 
-    struct Context{
+    struct Context {
         uint64 ra;
         uint64 sp;
+        uint64 s[12];   // s0-s11
     };
 private:
     explicit TCB(Body body,void* arg, void* stack_space);
