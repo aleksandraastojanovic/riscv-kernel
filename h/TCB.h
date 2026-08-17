@@ -19,6 +19,7 @@ public:
     static TCB* running;
     ~TCB();
     static void onTimerTick();
+    static void initIdle();
 
     void* operator new(size_t n);
     void operator delete(void* p);
@@ -29,7 +30,7 @@ public:
         uint64 s[12];   // s0-s11
     };
 private:
-    explicit TCB(Body body,void* arg, void* stack_space);
+    explicit TCB(Body body,void* arg, void* stack_space, bool start = true);
 
     static void threadWrapper();
     Body body;
@@ -41,8 +42,14 @@ private:
     int semResult;
     static uint64 timeSliceCounter;
 
+    static TCB* pickNext();
+    static void idleBody(void*);
+    static TCB* idle;
+    time_t sleepLeft = 0;
+
     friend class Scheduler;
     friend class SCB;
+    friend class SleepList;
 
 
 };

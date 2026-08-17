@@ -10,6 +10,7 @@ extern  "C" void contextSwitch(TCB::Context* old, TCB::Context* newContext);
 
 TCB* TCB::running = nullptr;
 uint64 TCB::timeSliceCounter = 0;
+TCB* TCB::idle = nullptr;
 
 static inline  size_t bytesToBlocks(size_t bytes){
     return (bytes+ MEM_BLOCK_SIZE- 1)/ MEM_BLOCK_SIZE;
@@ -22,7 +23,7 @@ void* TCB::operator new(size_t n) {
     return MemoryAllocator::alloc(bytesToBlocks(n));
 }
 
-TCB::TCB(Body b, void* a, void* stack_space) :
+TCB::TCB(Body b, void* a, void* stack_space,bool start) :
     body(b),
     arg(a),
     // stack_space pokazuje na KRAJ prostora; pocetak (za oslobadjanje) je
@@ -48,8 +49,8 @@ TCB* TCB::createThread(Body body, void* arg, void* stack_space) {
 void TCB::dispatch() {
     timeSliceCounter = 0;
     TCB* old = running;
-    if (!old->isFinished()) Scheduler::put(old);  // zavrsene se ne vracaju u listu
-    running = Scheduler::get();
+    if (!old->isFinished() && old!= idle) Scheduler::put(old);  // zavrsene se ne vracaju u listu
+    running = pickNext();
     contextSwitch(&old->context, &running->context);
 
 }
@@ -64,4 +65,21 @@ void TCB::threadWrapper() {
 void TCB::onTimerTick() {
     if (++timeSliceCounter >= DEFAULT_TIME_SLICE)
         dispatch();
+}
+
+TCB* TCB::pickNext() {
+    TCB* next = Scheduler::get();
+    return next? next:idle;
+}
+
+void TCB::idleBody(void*) {
+    for (;;)thread_dispatch();
+}
+
+
+void TCB::initIdle() {
+    // alloc prima BLOKOVE: 4096 B / 64 B = 64 bloka
+    void* space = MemoryAllocator::alloc(DEFAULT_STACK_SIZE / MEM_BLOCK_SIZE);
+    // vrh steka = pocetak + velicina u BAJTOVIMA; false = ne ide u Scheduler
+    idle = new TCB(&idleBody, nullptr, (char*)space + DEFAULT_STACK_SIZE, false);
 }

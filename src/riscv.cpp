@@ -3,7 +3,7 @@
 #include "../h/TCB.h"
 #include "../h/SCB.h"
 #include "../lib/console.h"
-
+#include "../h/SleepList.h"
 
 static const uint64 SYS_MEM_ALLOC       = 0x01;
 static const uint64 SYS_MEM_FREE        = 0x02;
@@ -16,6 +16,7 @@ static const uint64 SYS_SEM_WAIT        = 0x23;
 static const uint64 SYS_SEM_SIGNAL      = 0x24;
 static const uint64 SYS_GETC            = 0x41;
 static const uint64 SYS_PUTC            = 0x42;
+static const uint64 SYS_TIME_SLEEP = 0x31;
 
 
 void Riscv::popSppSpie() {
@@ -106,6 +107,11 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
             case SYS_PUTC:
                 __putc((char) frame[11]);
                 break;
+            case SYS_TIME_SLEEP:
+                frame[10] = 0;                 // rezultat upisujemo PRE spavanja -
+                // frame je na nasem steku i saceka nas
+                if (frame[11] > 0) SleepList::put(frame[11]);
+                break;
             default:
                 frame[10] = (uint64)(long) -1;
                 break;
@@ -116,6 +122,7 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
     } else if (scause == Riscv::SCAUSE_SOFTWARE_TIMER) {
 
         Riscv::w_sip(Riscv::r_sip() & ~Riscv::SIP_SSIP);
+        SleepList::tick();
         TCB::onTimerTick();
     } else if (scause == Riscv::SCAUSE_EXTERNAL_CONSOLE) {
         console_handler();

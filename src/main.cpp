@@ -11,6 +11,7 @@ int main() {
     // vec-izvrsavajuci main
     Riscv::w_stvec((uint64) &supervisorTrap);
     TCB::running = TCB::createThread(nullptr, nullptr, nullptr);
+    TCB::initIdle();
 
     // dozvoli prijem prekida: pojedinacne vrste (sie) + globalni
     // prekidac (sstatus.SIE) - bez ovoga znak sa tastature nikad ne stigne

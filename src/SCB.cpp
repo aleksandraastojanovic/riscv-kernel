@@ -38,7 +38,7 @@ TCB* SCB::dequeue() {
 void SCB::block() {
     TCB* old = TCB::running;
     enqueue(old);
-    TCB::running = Scheduler::get();
+    TCB::running = TCB::pickNext();
     contextSwitch(&old->context, &TCB::running->context);
 }
 
