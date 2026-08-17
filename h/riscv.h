@@ -11,12 +11,19 @@ public:
     static const uint64 SCAUSE_SOFTWARE_TIMER   = 0x8000000000000001UL;
     static const uint64 SCAUSE_EXTERNAL_CONSOLE = 0x8000000000000009UL;
 
+    static const uint64 SCAUSE_ILLEGAL_INSTRUCTION = 2;  // privilegovana/nepostojeca instrukcija
+    static const uint64 SCAUSE_LOAD_FAULT          = 5;  // nedozvoljena adresa citanja
+    static const uint64 SCAUSE_STORE_FAULT         = 7;  // nedozvoljena adresa upisa
+
     // biti u sstatus / sip / sie registrima
     static const uint64 SSTATUS_SIE = 1UL << 1;  // globalni prekidac prekida
     static const uint64 SIP_SSIP    = 1UL << 1;  // softverski prekid "na cekanju"
     static const uint64 SIE_SSIE    = 1UL << 1;  // dozvola softverskih (tajmer)
     static const uint64 SIE_STIE    = 1UL << 5;  // dozvola tajmerskih
     static const uint64 SIE_SEIE    = 1UL << 9;  // dozvola spoljasnjih (konzola)
+
+    static const uint64 SSTATUS_SPP  = 1UL << 8;  // rezim povratka za sret (0=U, 1=S)
+    static const uint64 SSTATUS_SPIE = 1UL << 5;  // vrednost SIE posle sret
 
     static uint64 r_scause() {
         uint64 v;

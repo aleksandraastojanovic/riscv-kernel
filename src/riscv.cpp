@@ -31,6 +31,11 @@ void Riscv::popSppSpie() {
  *   frame[10] = a0 (sifra poziva / povratna vrednost)
  *   frame[11..14] = a1..a4 (argumenti)
  */
+
+// kernel-side ispis, direktno kroz console.lib (S rezim, iz handlera)
+static void kprint(const char* s) {
+    while (*s) __putc(*s++);
+}
 extern "C" void handleSupervisorTrap(uint64* frame) {
     uint64 scause = Riscv::r_scause();
 
@@ -140,7 +145,16 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
         TCB::onTimerTick();
     } else if (scause == Riscv::SCAUSE_EXTERNAL_CONSOLE) {
         console_handler();
-    }
+    }     else if (scause == Riscv::SCAUSE_ILLEGAL_INSTRUCTION ||
+               scause == Riscv::SCAUSE_LOAD_FAULT ||
+               scause == Riscv::SCAUSE_STORE_FAULT) {
+        // korisnicki kod pokusao nesto nedozvoljeno: prijavi i ugasi nit
+        kprint("\nKERNEL: izuzetak (scause=");
+        __putc('0' + (char) scause);
+        kprint("), nit se gasi\n");
+        TCB::running->setFinished(true);
+        TCB::dispatch();   // odavde se za ovu nit vise nikad ne vracamo
+               }
     Riscv::w_sstatus(sstatus);
     Riscv::w_sepc(sepc);
 }

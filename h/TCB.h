@@ -30,8 +30,7 @@ public:
         uint64 s[12];   // s0-s11
     };
 private:
-    explicit TCB(Body body,void* arg, void* stack_space, bool start = true);
-
+    explicit TCB(Body body, void* arg, void* stack_space, bool start = true, bool system = false);
     static void threadWrapper();
     Body body;
     void*arg;
@@ -51,6 +50,8 @@ private:
     friend class Scheduler;
     friend class SCB;
     friend class SleepList;
+
+    bool systemThread;   // telo se izvrsava u S (interne niti jezgra) ili U rezimu
 
 
 };
