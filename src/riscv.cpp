@@ -2,7 +2,7 @@
 #include "../h/MemoryAllocator.h"
 #include "../h/TCB.h"
 #include "../h/SCB.h"
-#include "../lib/console.h"
+#include "../h/KConsole.h"
 #include "../h/SleepList.h"
 
 static const uint64 SYS_MEM_ALLOC       = 0x01;
@@ -32,9 +32,15 @@ void Riscv::popSppSpie() {
  *   frame[11..14] = a1..a4 (argumenti)
  */
 
-// kernel-side ispis, direktno kroz console.lib (S rezim, iz handlera)
+// direktan (sinhron) upis u kontroler - SAMO za dijagnostiku izuzetaka:
+// ne sme da zavisi od bafera/niti/rasporedjivaca kad je sistem u kvaru
+static void kputcDirect(char c) {
+    while (!(*(volatile char*) CONSOLE_STATUS & CONSOLE_TX_STATUS_BIT)) {}
+    *(volatile char*) CONSOLE_TX_DATA = c;
+}
+
 static void kprint(const char* s) {
-    while (*s) __putc(*s++);
+    while (*s) kputcDirect(*s++);
 }
 extern "C" void handleSupervisorTrap(uint64* frame) {
     uint64 scause = Riscv::r_scause();
@@ -118,13 +124,10 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
                 break;
             }
             case SYS_GETC:
-
-                Riscv::w_sstatus(Riscv::r_sstatus() | Riscv::SSTATUS_SIE);
-                frame[10] = (uint64) __getc();
-                Riscv::w_sstatus(Riscv::r_sstatus() & ~Riscv::SSTATUS_SIE);
+                frame[10] = (uint64) KConsole::kgetc();
                 break;
             case SYS_PUTC:
-                __putc((char) frame[11]);
+                KConsole::kputc((char) frame[11]);
                 break;
             case SYS_TIME_SLEEP:
                 frame[10] = 0;                 // rezultat upisujemo PRE spavanja -
@@ -144,13 +147,14 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
         SleepList::tick();
         TCB::onTimerTick();
     } else if (scause == Riscv::SCAUSE_EXTERNAL_CONSOLE) {
-        console_handler();
-    }     else if (scause == Riscv::SCAUSE_ILLEGAL_INSTRUCTION ||
+            KConsole::handleInterrupt();
+
+    }else if (scause == Riscv::SCAUSE_ILLEGAL_INSTRUCTION ||
                scause == Riscv::SCAUSE_LOAD_FAULT ||
                scause == Riscv::SCAUSE_STORE_FAULT) {
         // korisnicki kod pokusao nesto nedozvoljeno: prijavi i ugasi nit
         kprint("\nKERNEL: izuzetak (scause=");
-        __putc('0' + (char) scause);
+        kputcDirect('0' + (char) scause);
         kprint("), nit se gasi\n");
         TCB::running->setFinished(true);
         TCB::dispatch();   // odavde se za ovu nit vise nikad ne vracamo

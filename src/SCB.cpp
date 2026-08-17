@@ -70,7 +70,7 @@ int SCB::wait_n(unsigned n) {
 
 int SCB::signal_n(unsigned n) {
     val+= (int) n;
-    while (head && val >= (int) n) {
+    while (head && val >= (int) head->semNeed) {
         val-= (int) head->semNeed;
         deblock(0);
     }

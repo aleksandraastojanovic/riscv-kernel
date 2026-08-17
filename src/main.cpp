@@ -1,6 +1,7 @@
 #include "../h/riscv.h"
 #include "../h/TCB.h"
 #include "../h/syscall_c.h"
+#include "../h/KConsole.h"
 
 // userMain iz src/userMain.cpp (dosao uz javne testove)
 void userMain();
@@ -21,6 +22,7 @@ int main() {
     Riscv::w_stvec((uint64) &supervisorTrap);
     TCB::running = TCB::createThread(nullptr, nullptr, nullptr);
     TCB::initIdle();
+    KConsole::init();   // baferi + izlazna nit jezgra
 
     // dozvoli prijem prekida
     Riscv::w_sie(Riscv::r_sie() | Riscv::SIE_SSIE | Riscv::SIE_STIE | Riscv::SIE_SEIE);
@@ -34,6 +36,7 @@ int main() {
 
     sem_wait(userMainDone);   // main spava dok ceo korisnicki program ne zavrsi
 
+    while (!KConsole::isOutEmpty()) thread_dispatch();
     // regularan kraj programa: zaustavi emulator
     // (postavka: upis 32-bitne vrednosti 0x5555 na adresu 0x100000)
     *((volatile uint32*) 0x100000) = 0x5555;

@@ -20,6 +20,7 @@ public:
     ~TCB();
     static void onTimerTick();
     static void initIdle();
+    static TCB* createSystemThread(Body body, void* arg);  // interne niti jezgra
 
     void* operator new(size_t n);
     void operator delete(void* p);

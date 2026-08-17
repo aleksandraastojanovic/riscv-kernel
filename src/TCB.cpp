@@ -89,3 +89,10 @@ void TCB::initIdle() {
     // vrh steka = pocetak + velicina u BAJTOVIMA; false = ne ide u Scheduler
     idle = new TCB(&idleBody, nullptr, (char*)space + DEFAULT_STACK_SIZE, false,true);
 }
+
+TCB* TCB::createSystemThread(Body body, void* arg) {
+    void* space = MemoryAllocator::alloc(DEFAULT_STACK_SIZE / MEM_BLOCK_SIZE);
+    if (!space) return nullptr;
+    // start=true (odmah u Scheduler), system=true (telo u S rezimu!)
+    return new TCB(body, arg, (char*) space + DEFAULT_STACK_SIZE, true, true);
+}
