@@ -31,11 +31,12 @@ void Riscv::popSppSpie() {
 extern "C" void handleSupervisorTrap(uint64* frame) {
     uint64 scause = Riscv::r_scause();
 
+    uint64 sepc = Riscv::r_sepc();
+    uint64 sstatus = Riscv::r_sstatus();
     if (scause == Riscv::SCAUSE_ECALL_SUPERVISOR ||
         scause == Riscv::SCAUSE_ECALL_USER) {
+        sepc += 4;
 
-        uint64 sepc = Riscv::r_sepc() + 4;     // povratak IZA ecall-a
-        uint64 sstatus = Riscv::r_sstatus();
 
         switch (frame[10]) {
             case SYS_MEM_ALLOC:
@@ -111,12 +112,14 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
         }
 
 
-        Riscv::w_sstatus(sstatus);
-        Riscv::w_sepc(sepc);
+
     } else if (scause == Riscv::SCAUSE_SOFTWARE_TIMER) {
 
         Riscv::w_sip(Riscv::r_sip() & ~Riscv::SIP_SSIP);
+        TCB::onTimerTick();
     } else if (scause == Riscv::SCAUSE_EXTERNAL_CONSOLE) {
         console_handler();
     }
+    Riscv::w_sstatus(sstatus);
+    Riscv::w_sepc(sepc);
 }

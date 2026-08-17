@@ -9,6 +9,7 @@
 extern  "C" void contextSwitch(TCB::Context* old, TCB::Context* newContext);
 
 TCB* TCB::running = nullptr;
+uint64 TCB::timeSliceCounter = 0;
 
 static inline  size_t bytesToBlocks(size_t bytes){
     return (bytes+ MEM_BLOCK_SIZE- 1)/ MEM_BLOCK_SIZE;
@@ -45,6 +46,7 @@ TCB* TCB::createThread(Body body, void* arg, void* stack_space) {
 }
 
 void TCB::dispatch() {
+    timeSliceCounter = 0;
     TCB* old = running;
     if (!old->isFinished()) Scheduler::put(old);  // zavrsene se ne vracaju u listu
     running = Scheduler::get();
@@ -56,4 +58,10 @@ void TCB::threadWrapper() {
     Riscv::popSppSpie();           // iskoci iz trap
     running->body(running->arg);
     thread_exit();
+}
+
+
+void TCB::onTimerTick() {
+    if (++timeSliceCounter >= DEFAULT_TIME_SLICE)
+        dispatch();
 }

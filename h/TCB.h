@@ -18,6 +18,7 @@ public:
     void setFinished(bool value) {finished =value;}
     static TCB* running;
     ~TCB();
+    static void onTimerTick();
 
     void* operator new(size_t n);
     void operator delete(void* p);
@@ -38,6 +39,7 @@ private:
     bool finished;
     TCB* next;
     int semResult;
+    static uint64 timeSliceCounter;
 
     friend class Scheduler;
     friend class SCB;
