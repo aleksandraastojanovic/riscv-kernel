@@ -51,15 +51,29 @@ void SCB::deblock(int res) {
 }
 
 int SCB::wait() {
-    if (--val < 0) {
-        block();
-        return TCB::running->semResult;
-    }
-    return 0;
+    return wait_n(1);
 }
 
 int SCB::signal() {
-    if (++val<= 0) deblock(0);
+    return signal_n(1);
+}
+
+int SCB::wait_n(unsigned n) {
+    if (val>= (int) n) {
+        val-=(int) n;
+        return 0;
+    }
+    TCB::running->semNeed = n;
+    block();
+    return TCB::running->semResult;
+}
+
+int SCB::signal_n(unsigned n) {
+    val+= (int) n;
+    while (head && val >= (int) n) {
+        val-= (int) head->semNeed;
+        deblock(0);
+    }
     return 0;
 }
 

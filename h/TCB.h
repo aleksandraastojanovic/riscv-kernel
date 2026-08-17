@@ -40,6 +40,7 @@ private:
     bool finished;
     TCB* next;
     int semResult;
+    unsigned semNeed = 1;
     static uint64 timeSliceCounter;
 
     static TCB* pickNext();

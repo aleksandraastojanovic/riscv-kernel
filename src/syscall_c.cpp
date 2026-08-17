@@ -93,6 +93,23 @@ int sem_signal(sem_t id) {
     return (int) a0;
 }
 
+
+int sem_wait_n(sem_t id, unsigned n) {
+    register uint64 a0 __asm__("a0") = 0x25;
+    register uint64 a1 __asm__("a1") = (uint64) id;
+    register uint64 a2 __asm__("a2") = (uint64) n;
+    __asm__ volatile("ecall" : "+r"(a0) : "r"(a1), "r"(a2) : "memory");
+    return (int) a0;
+}
+
+int sem_signal_n(sem_t id, unsigned n) {
+    register uint64 a0 __asm__("a0") = 0x26;
+    register uint64 a1 __asm__("a1") = (uint64) id;
+    register uint64 a2 __asm__("a2") = (uint64) n;
+    __asm__ volatile("ecall" : "+r"(a0) : "r"(a1), "r"(a2) : "memory");
+    return (int) a0;
+}
+
 int time_sleep(time_t t) {
     register uint64 a0 __asm__("a0") = 0x31;
     register uint64 a1 __asm__("a1") = (uint64) t;

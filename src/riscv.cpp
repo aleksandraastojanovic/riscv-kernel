@@ -17,6 +17,8 @@ static const uint64 SYS_SEM_SIGNAL      = 0x24;
 static const uint64 SYS_GETC            = 0x41;
 static const uint64 SYS_PUTC            = 0x42;
 static const uint64 SYS_TIME_SLEEP = 0x31;
+static const uint64 SYS_SEM_WAIT_N   = 0x25;
+static const uint64 SYS_SEM_SIGNAL_N = 0x26;
 
 
 void Riscv::popSppSpie() {
@@ -96,6 +98,18 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
                 SCB* s = (SCB*) frame[11];
                 if (!s) { frame[10] = (uint64)(long) -1; break; }
                 frame[10] = (uint64)(long) s->signal();
+                break;
+            }
+            case SYS_SEM_WAIT_N: {
+                SCB* s = (SCB*) frame[11];
+                if (!s) { frame[10] = (uint64)(long) -1; break; }
+                frame[10] = (uint64)(long) s->wait_n((unsigned) frame[12]);
+                break;
+            }
+            case SYS_SEM_SIGNAL_N: {
+                SCB* s = (SCB*) frame[11];
+                if (!s) { frame[10] = (uint64)(long) -1; break; }
+                frame[10] = (uint64)(long) s->signal_n((unsigned) frame[12]);
                 break;
             }
             case SYS_GETC:

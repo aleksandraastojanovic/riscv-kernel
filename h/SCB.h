@@ -14,6 +14,8 @@ class SCB {
     int wait();
     int signal();
     void closeAll();
+    int wait_n(unsigned n);
+    int signal_n(unsigned n);
 
     void* operator new(size_t n);
     void operator delete(void* p);
