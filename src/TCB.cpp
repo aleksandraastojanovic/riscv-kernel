@@ -35,7 +35,7 @@ TCB::TCB(Body b, void* a, void* stack_space,bool start) :
     finished(false),
     next(nullptr)
 {
-    if (b) Scheduler::put(this);
+    if (b&& start) Scheduler::put(this);
 }
 
 TCB::~TCB() {

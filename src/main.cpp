@@ -21,5 +21,8 @@ int main() {
     // sve dalje radi korisnicki kod javnih testova
     userMain();
 
-    for (;;) { /* kernel se ne "vraca" nikuda */ }
+    // regularan kraj programa: zaustavi emulator
+    // (postavka: upis 32-bitne vrednosti 0x5555 na adresu 0x100000)
+    *((volatile uint32*) 0x100000) = 0x5555;
+    for (;;) { /* nedostizno - osiguranje */ }
 }
