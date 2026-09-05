@@ -15,6 +15,8 @@
 #endif
 
 #if LEVEL_3_IMPLEMENTED == 1
+#include "../test/Semaphore_test.h"
+
 // TEST 3 (zadatak 3., kompletan C API sa semaforima, sinhrona promena konteksta)
 #include "../test/ConsumerProducer_C_API_test.hpp"
 // TEST 4 (zadatak 3., kompletan CPP API sa semaforima, sinhrona promena konteksta)
@@ -34,7 +36,7 @@
 void userMain() {
 
 
-    printString("Unesite broj testa? [1-7]\n");
+    printString("Unesite broj testa? [1-8]\n");
     int test = getc() - '0';
     getc(); // Enter posle broja
 
@@ -45,7 +47,7 @@ void userMain() {
         }
     }
 
-    if (test >= 3 && test <= 4) {
+    if ((test >= 3 && test <= 4) || test == 8) {
         if (LEVEL_3_IMPLEMENTED == 0) {
             printString("Nije navedeno da je zadatak 3 implementiran\n");
             return;
@@ -101,6 +103,13 @@ void userMain() {
             System_Mode_test();
             printString("Test se nije uspesno zavrsio\n");
             printString("TEST 7 (zadatak 2., testiranje da li se korisnicki kod izvrsava u korisnickom rezimu)\n");
+#endif
+            break;
+
+        case 8:
+#if LEVEL_3_IMPLEMENTED == 1
+            Semaphore_test();
+            printString("TEST 8 (moj test semafora)\n");
 #endif
             break;
         default:
