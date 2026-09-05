@@ -61,10 +61,14 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
                 break;
             case SYS_THREAD_CREATE: {
                 // a1=handle, a2=start_routine, a3=arg, a4=stack_space
+                if (!frame[11] || !frame[12] || !frame[14]) {
+                    frame[10] = (uint64)(long) -1;   // nit bez rucke/tela/steka
+                    break;
+                }
                 TCB* t = TCB::createThread((TCB::Body) frame[12],
                                            (void*) frame[13],
                                            (void*) frame[14]);
-                if (t && frame[11]) {
+                if (t) {
                     *(uint64*) frame[11] = (uint64) t;
                     frame[10] = 0;
                 } else {
@@ -80,12 +84,13 @@ extern "C" void handleSupervisorTrap(uint64* frame) {
                 TCB::dispatch();
                 break;
             case SYS_SEM_OPEN: {
+                if (!frame[11]) { frame[10] = (uint64)(long) -1; break; }
                 SCB* s = new SCB((int) frame[12]);   // a2 = init vrednost
-                if (s && frame[11]) {
+                if (s) {
                     *(uint64*) frame[11] = (uint64) s;   // upisi rucku
                     frame[10] = 0;
                 } else {
-                    frame[10] = (uint64)(long) -1;
+                    frame[10] = (uint64)(long) -1;   // new vraca null -> nista nije alocirano
                 }
                 break;
             }

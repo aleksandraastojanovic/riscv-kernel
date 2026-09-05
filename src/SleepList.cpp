@@ -2,8 +2,6 @@
 #include "../h/TCB.h"
 #include "../h/Scheduler.h"
 
-extern "C" void contextSwitch(TCB::Context* old, TCB::Context* newContext);
-
 TCB* SleepList::head = nullptr;
 
 void SleepList::put(time_t relativeTime) {
@@ -25,9 +23,8 @@ void SleepList::put(time_t relativeTime) {
     if (prev) prev->next = t;
     else head = t;
 
-    // uspavaj tekucu nit - identican obrazac kao SCB::block
-    TCB::running = TCB::pickNext();
-    contextSwitch(&t->context, &TCB::running->context);
+    // uspavaj tekucu nit - ista putanja kao SCB::block
+    TCB::switchToNext(t);
 }
 
 void SleepList::tick() {

@@ -11,6 +11,7 @@ extern  "C" void contextSwitch(TCB::Context* old, TCB::Context* newContext);
 TCB* TCB::running = nullptr;
 uint64 TCB::timeSliceCounter = 0;
 TCB* TCB::idle = nullptr;
+TCB* TCB::lastSwitchedOut = nullptr;
 
 static inline  size_t bytesToBlocks(size_t bytes){
     return (bytes+ MEM_BLOCK_SIZE- 1)/ MEM_BLOCK_SIZE;
@@ -26,11 +27,7 @@ void* TCB::operator new(size_t n) {
 TCB::TCB(Body b, void* a, void* stack_space,bool start, bool system) :
     body(b),
     arg(a),
-    // stack_space pokazuje na KRAJ prostora; pocetak (za oslobadjanje) je
-    // DEFAULT_STACK_SIZE bajtova unazad - toliko C API uvek alocira
-    stackBegin(stack_space
-        ? (uint64*)((char*)stack_space - DEFAULT_STACK_SIZE) : nullptr),
-
+    stackSpace(stack_space),
     context({ b ? (uint64) &threadWrapper : 0, (uint64) stack_space }),
     finished(false),
     next(nullptr),
@@ -40,7 +37,18 @@ systemThread(system)
 }
 
 TCB::~TCB() {
-if(stackBegin) MemoryAllocator::free(stackBegin);
+    // stack_space pokazuje na KRAJ prostora; pocetak (vrednost koju je vratio
+    // mem_alloc) je DEFAULT_STACK_SIZE bajtova unazad - toliko C API uvek alocira
+    if (stackSpace) MemoryAllocator::free((char*) stackSpace - DEFAULT_STACK_SIZE);
+}
+
+void TCB::reapLastSwitchedOut() {
+    TCB* t = lastSwitchedOut;
+    lastSwitchedOut = nullptr;          // svaki kandidat se razmatra tacno jednom
+    if (!t || t == running) return;
+    // brisu se samo ZAVRSENE KORISNICKE niti; idle, pocetna nit jezgra (bez tela)
+    // i interne sistemske niti (izlazna nit konzole) se nikad ne brisu
+    if (t->finished && !t->systemThread && t != idle && t->body) delete t;
 }
 
 TCB* TCB::createThread(Body body, void* arg, void* stack_space) {
@@ -48,15 +56,23 @@ TCB* TCB::createThread(Body body, void* arg, void* stack_space) {
 }
 
 void TCB::dispatch() {
-    timeSliceCounter = 0;
     TCB* old = running;
     if (!old->isFinished() && old!= idle) Scheduler::put(old);  // zavrsene se ne vracaju u listu
-    running = pickNext();
-    contextSwitch(&old->context, &running->context);
+    switchToNext(old);
+}
 
+void TCB::switchToNext(TCB* old) {
+    timeSliceCounter = 0;          // nova tekuca nit uvek dobija pun odsecak
+    running = pickNext();
+    lastSwitchedOut = old;
+    contextSwitch(&old->context, &running->context);
+    // odavde se izvrsava nit koja je (ponovo) dobila procesor, na SVOM steku:
+    // bezbedno je osloboditi nit koja ga je upravo izgubila ako se zavrsila
+    reapLastSwitchedOut();
 }
 
 void TCB::threadWrapper() {
+    reapLastSwitchedOut();         // nit pokrenuta prvi put: isti posao kao posle contextSwitch
     uint64 sstatus = Riscv::r_sstatus();
     if (running->systemThread) sstatus |= Riscv::SSTATUS_SPP;
     else sstatus &= ~Riscv::SSTATUS_SPP;

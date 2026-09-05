@@ -37,7 +37,9 @@ int thread_create(thread_t* handle, void (*start_routine)(void*), void* arg) {
                      : "r"(a1), "r"(a2), "r"(a3), "r"(a4)
                      : "memory");
 
-    return (int) a0;
+    int result = (int) a0;
+    if (result < 0) mem_free(stack);   // jezgro nije napravilo nit: stek ne sme da procuri
+    return result;
 }
 
 int thread_exit() {

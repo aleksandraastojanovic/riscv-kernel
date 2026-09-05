@@ -5,9 +5,6 @@
 #include "../h/MemoryAllocator.h"
 
 
-extern  "C" void contextSwitch(TCB::Context* old, TCB::Context* newContext);
-
-
 static inline  size_t bytesToBlocks(size_t bytes){
     return (bytes+ MEM_BLOCK_SIZE- 1)/ MEM_BLOCK_SIZE;
 }
@@ -38,8 +35,7 @@ TCB* SCB::dequeue() {
 void SCB::block() {
     TCB* old = TCB::running;
     enqueue(old);
-    TCB::running = TCB::pickNext();
-    contextSwitch(&old->context, &TCB::running->context);
+    TCB::switchToNext(old);
 }
 
 void SCB::deblock(int res) {

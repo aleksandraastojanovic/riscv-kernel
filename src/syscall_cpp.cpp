@@ -5,6 +5,11 @@
 void* operator new (size_t n) { return mem_alloc(n); }
 void  operator delete (void* p) { mem_free(p); }
 
+// nizovi (new T[n] / delete[]): bez standardne biblioteke ove operatorske
+// funkcije ne postoje, pa ih obezbedjujemo na isti nacin kao i skalarne
+void* operator new[] (size_t n) { return mem_alloc(n); }
+void  operator delete[] (void* p) { mem_free(p); }
+
 
 Thread::Thread(void (*body)(void*), void* arg)
     : myHandle(nullptr), body(body), arg(arg) {}

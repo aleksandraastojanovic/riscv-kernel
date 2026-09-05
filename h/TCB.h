@@ -35,7 +35,8 @@ private:
     static void threadWrapper();
     Body body;
     void*arg;
-    uint64 *stackBegin;
+    void* stackSpace;    // vrednost stigla kroz ABI thread_create (kraj steka);
+                         // stek je alocirao C API sa mem_alloc(DEFAULT_STACK_SIZE)
     Context context;
     bool finished;
     TCB* next;
@@ -44,6 +45,16 @@ private:
     static uint64 timeSliceCounter;
 
     static TCB* pickNext();
+    // zajednicka putanja za SVAKO oduzimanje procesora tekucoj niti (dispatch,
+    // blokiranje na semaforu, uspavljivanje): bira sledecu, dodeljuje joj pun
+    // vremenski odsecak i prebacuje kontekst
+    static void switchToNext(TCB* old);
+
+    // odlozeno brisanje: nit koja se zavrsila ne sme da oslobodi sopstveni stek
+    // dok na njemu radi, pa to radi PRVI kod jezgra koji se izvrsi na steku
+    // nove tekuce niti (posle contextSwitch ili na pocetku threadWrapper)
+    static TCB* lastSwitchedOut;
+    static void reapLastSwitchedOut();
     static void idleBody(void*);
     static TCB* idle;
     time_t sleepLeft = 0;
